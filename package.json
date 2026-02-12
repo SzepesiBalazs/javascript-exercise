@@ -1,0 +1,31 @@
+{
+  "name": "tdd-progamming",
+  "description": "",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "transform": {}
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SzepesiBalazs/javascript-exercise/.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SzepesiBalazs/tdd-progamming/issues"
+  },
+  "homepage": "https://github.com/SzepesiBalazs/ptdd-progamming#readme",
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.0",
+    "babel-jest": "^27.5.1",
+    "jest": "^27.5.1"
+  }
+}
