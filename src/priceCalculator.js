@@ -1,48 +1,73 @@
-export default class SubscriptionPlan {
-  constructor(prices, name, uuid) {
-    this.prices = prices; // [10, 20, 30]
-    this.name = name;
-    this.uuid = uuid;
+const calculatePlan = (
+  plan,
+  months = 1,
+  discountPercentageCodes = [],
+  discountFixedCodes = [],
+) => {
+  const prices = {
+    basic: 10,
+    pro: 20,
+    enterprise: 30,
+  };
+
+  if (prices[plan] === undefined) {
+    return undefined;
   }
 
-  #isPricePositive(price) {
-    return price > 0;
+  if (typeof months !== "number" || months < 1) {
+    return undefined;
   }
 
-  #isPriceNumber(price) {
-    return typeof price === "number";
+  let total = prices[plan] * months;
+  total = calculatePercentageDiscountPrice(total, discountPercentageCodes);
+  total = calculateFixedDiscountPrice(total, discountFixedCodes);
+
+  return Math.max(total, 0);
+};
+
+const calculatePercentageDiscountPrice = (price, discountPercentageCodes) => {
+  let calculatedPrice = price;
+
+  const DISCOUNT_PERCENTAGE_CODES = {
+    "10percent": 0.1,
+    "25percent": 0.25,
+    "50percent": 0.5,
+  };
+
+  if (discountPercentageCodes.length === 0) {
+    return calculatedPrice;
   }
 
-  #isPriceValid(price) {
-    return this.#isPriceNumber(price) && this.#isPricePositive(price);
-  }
-
-  calculatePrice(tier = 1, discount = 0) {
-
-    tier = Math.max(tier, 1);
-    
-    const basePrice = this.prices[tier - 1];
-
-    if (!this.#isPriceValid(basePrice)) {
-      throw new Error("Invalid price. Price must be a positive number.");
+  for (const code of discountPercentageCodes) {
+    if (DISCOUNT_PERCENTAGE_CODES[code]) {
+      calculatedPrice =
+        calculatedPrice - calculatedPrice * DISCOUNT_PERCENTAGE_CODES[code];
     }
-
-    const discountedPrice = basePrice * (1 - discount);
-
-    if (!this.#isPriceValid(discountedPrice)) {
-      throw new Error("Invalid price. Price must be a positive number.");
-    }
-
-    const result = Math.round(discountedPrice * 100) / 100;
-
-    return result;
   }
-}
 
-/*
+  return calculatedPrice;
+};
 
-let someSubscriptionPlan = new SubscriptionPlan([10, 20, 30], "Basic Plan", "1234-5678");
+const calculateFixedDiscountPrice = (price, discountFixedCodes) => {
+  let calculatedPrice = price;
 
-let discountedPrice = someSubscriptionPlan.calculatePrice(1, 0.35);
+  const DISCOUNT_FIXED_CODES = {
+    "5off": 5,
+    "10off": 10,
+    "20off": 20,
+  };
 
-*/
+  if (discountFixedCodes.length === 0) {
+    return calculatedPrice;
+  }
+
+  for (const code of discountFixedCodes) {
+    if (DISCOUNT_FIXED_CODES[code]) {
+      calculatedPrice = calculatedPrice - DISCOUNT_FIXED_CODES[code];
+    }
+  }
+
+  return calculatedPrice;
+};
+
+export default calculatePlan;
