@@ -3,6 +3,7 @@ const calculatePlan = (
   months = 1,
   discountPercentageCodes = [],
   discountFixedCodes = [],
+  tax = 0,
 ) => {
   const prices = {
     basic: 10,
@@ -10,64 +11,86 @@ const calculatePlan = (
     enterprise: 30,
   };
 
-  if (prices[plan] === undefined) {
+  if (!validateInput(prices, plan, months)) {
     return undefined;
+  }
+
+  const total = new PriceCalculator(prices[plan])
+    .calculatePriceForMonths(months)
+    .calculatePercentageDiscountPrice(discountPercentageCodes)
+    .calculateFixedDiscountPrice(discountFixedCodes)
+    .calculatePriceWithTax(tax);
+
+  return Math.max(total.price, 0);
+};
+
+function validateInput(prices, plan, months) {
+  if (prices[plan] === undefined) {
+    return false;
   }
 
   if (typeof months !== "number" || months < 1) {
-    return undefined;
+    return false;
   }
 
-  let total = prices[plan] * months;
-  total = calculatePercentageDiscountPrice(total, discountPercentageCodes);
-  total = calculateFixedDiscountPrice(total, discountFixedCodes);
+  return true;
+}
 
-  return Math.max(total, 0);
-};
-
-const calculatePercentageDiscountPrice = (price, discountPercentageCodes) => {
-  let calculatedPrice = price;
-
-  const DISCOUNT_PERCENTAGE_CODES = {
-    "10percent": 0.1,
-    "25percent": 0.25,
-    "50percent": 0.5,
-  };
-
-  if (discountPercentageCodes.length === 0) {
-    return calculatedPrice;
+export class PriceCalculator {
+  constructor(price) {
+    this.price = price;
   }
 
-  for (const code of discountPercentageCodes) {
-    if (DISCOUNT_PERCENTAGE_CODES[code]) {
-      calculatedPrice =
-        calculatedPrice - calculatedPrice * DISCOUNT_PERCENTAGE_CODES[code];
+  calculatePriceForMonths(months) {
+    this.price *= months;
+
+    return this;
+  }
+
+  calculatePercentageDiscountPrice(discountPercentageCodes) {
+    const DISCOUNT_PERCENTAGE_CODES = {
+      "10percent": 0.1,
+      "25percent": 0.25,
+      "50percent": 0.5,
+    };
+
+    if (discountPercentageCodes.length === 0) {
+      return this;
     }
-  }
 
-  return calculatedPrice;
-};
-
-const calculateFixedDiscountPrice = (price, discountFixedCodes) => {
-  let calculatedPrice = price;
-
-  const DISCOUNT_FIXED_CODES = {
-    "5off": 5,
-    "10off": 10,
-    "20off": 20,
-  };
-
-  if (discountFixedCodes.length === 0) {
-    return calculatedPrice;
-  }
-
-  for (const code of discountFixedCodes) {
-    if (DISCOUNT_FIXED_CODES[code]) {
-      calculatedPrice = calculatedPrice - DISCOUNT_FIXED_CODES[code];
+    for (const code of discountPercentageCodes) {
+      if (DISCOUNT_PERCENTAGE_CODES[code]) {
+        this.price -= this.price * DISCOUNT_PERCENTAGE_CODES[code];
+      }
     }
+
+    return this;
   }
 
-  return calculatedPrice;
-};
+  calculateFixedDiscountPrice(discountFixedCodes) {
+    const DISCOUNT_FIXED_CODES = {
+      "5off": 5,
+      "10off": 10,
+      "20off": 20,
+    };
+
+    if (discountFixedCodes.length === 0) {
+      return this;
+    }
+
+    for (const code of discountFixedCodes) {
+      if (DISCOUNT_FIXED_CODES[code]) {
+        this.price -= DISCOUNT_FIXED_CODES[code];
+      }
+    }
+
+    return this;
+  }
+
+  calculatePriceWithTax(tax) {
+    this.price *= 1 + tax;
+    return this;
+  }
+}
 
 export default calculatePlan;

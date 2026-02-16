@@ -15,8 +15,8 @@
 // });
 //
 
-import calculatePlan from '../src/priceCalculator.js';
-
+import calculatePlan from "../src/priceCalculator.js";
+import PriceCalculator from "../src/priceCalculator.js";
 
 // Part 1 - Base Monthly Subscription Price
 
@@ -30,30 +30,41 @@ test("If plan name is invalid, it should return undefined", () => {
 
 // Part 2 - Multiple Subscription Plans
 
-test("Support simple plans with fixed monthly cost", () => {
-  expect(calculatePlan("basic")).toEqual(10);
-  expect(calculatePlan("pro")).toEqual(20);
-  expect(calculatePlan("enterprise")).toEqual(30);
+test.each([
+  ["basic", 10],
+  ["pro", 20],
+  ["enterprise", 30],
+])("Support simple plans with fixed monthly cost", (price, expected) => {
+  expect(calculatePlan(price)).toEqual(expected);
 });
 
 // Part 3 - Billing Period Calculation
 
-test("Calculate cost for multiple billing months", () => {
-  expect(calculatePlan("basic", 3)).toEqual(30);
-  expect(calculatePlan("pro", 6)).toEqual(120);
-  expect(calculatePlan("enterprise", 12)).toEqual(360);
+test.each([
+  ["basic", 3, 30],
+  ["pro", 6, 120],
+  ["enterprise", 12, 360],
+])("Calculate cost for multiple billing months", (plan, months, expected) => {
+  expect(calculatePlan(plan, months)).toEqual(expected);
 });
 
-test("If number of months is invalid, it should return undefined", () => {
-  expect(calculatePlan("basic", -1)).toBeUndefined();
-  expect(calculatePlan("pro", "three")).toBeUndefined();
-  expect(calculatePlan("enterprise", null)).toBeUndefined();
-});
+test.each([
+  ["basic", -1],
+  ["pro", "three"],
+  ["enterprise", null],
+])(
+  "If number of months is invalid, it should return undefined",
+  (plan, months) => {
+    expect(calculatePlan(plan, months)).toBeUndefined();
+  },
+);
 
-test("Ensure correct multiplication of monthly cost", () => {
-  expect(calculatePlan("basic", 3)).toEqual(calculatePlan("basic", 1) * 3);
-  expect(calculatePlan("pro", 6)).toEqual(calculatePlan("pro", 1) * 6);
-  expect(calculatePlan("enterprise", 12)).toEqual(calculatePlan("enterprise", 1) * 12);
+test.each([
+  ["basic", 3],
+  ["pro", 6],
+  ["enterprise", 12],
+])("Ensure correct multiplication of monthly cost", (plan, months) => {
+  expect(calculatePlan(plan, months)).toEqual(calculatePlan(plan, 1) * months);
 });
 
 // Part 4 - Discounts
@@ -64,11 +75,19 @@ We should support these codes:
 - "25percernt" : 25% off the total price
 - "50percent" : 50% off the total price
 */
-test("Apply percentage discount codes", () => {
-  expect(calculatePlan("basic", 3, ["10percent"])).toEqual(calculatePlan("basic", 3) * (1 - 0.1));
-  expect(calculatePlan("pro", 6, ["25percent"])).toEqual(calculatePlan("pro", 6) * (1 - 0.25));
-  expect(calculatePlan("enterprise", 12, ["50percent"])).toEqual(calculatePlan("enterprise", 12) * (1 - 0.5));
-});
+
+test.each([
+  ["basic", 3, ["10percent"], 0.1],
+  ["pro", 6, ["25percent"], 0.25],
+  ["enterprise", 12, ["50percent"], 0.5],
+])(
+  "Apply percentage discount codes",
+  (plan, months, discountCodes, discount) => {
+    expect(calculatePlan(plan, months, discountCodes)).toBe(
+      calculatePlan(plan, months) * (1 - discount),
+    );
+  },
+);
 
 /*
 We should also support these fixed discount codes:
@@ -76,20 +95,63 @@ We should also support these fixed discount codes:
 - "10off": $10 off the total price
 - "20off": $20 off the total price
 */
-test("Apply fixed discount codes", () => {
-  expect(calculatePlan("basic", 3, [], ["5off"])).toEqual(calculatePlan("basic", 3) - 5);
-  expect(calculatePlan("pro", 6, [], ["10off"])).toEqual(calculatePlan("pro", 6) - 10);
-  expect(calculatePlan("enterprise", 12, [], ["20off"])).toEqual(calculatePlan("enterprise", 12) - 20);
-});
 
-test("Amount should never go below zero", () => {
-  expect(calculatePlan("basic", 1, [], ["20off"])).toEqual(0);
-});
+//create data sets/data providers for the expectations, in a way we can simplify the tests. (all of them)
 
-test("Amount should never go below zero", () => {
-  expect(calculatePlan("basic", 1, [], ["20off"])).toEqual(0);
-});
+test.each([
+  ["basic", 3, [], ["5off"]],
+  ["pro", 6, [], ["10off"]],
+  ["enterprise", 12, [], ["20off"]],
+])(
+  "Apply fixed discount codes",
+  (plan, months, discountPercentageCodes, discountFixedCodes) => {
+    expect(
+      calculatePlan(plan, months, discountPercentageCodes, discountFixedCodes),
+    ).toEqual(
+      calculatePlan(plan, months) - discountFixedCodes[0].replace("off", ""),
+    );
+  },
+);
 
-test("Multiple discount codes should work together", () => {
-  expect(calculatePlan("basic", 3, [], ["5off", "5off"])).toEqual(calculatePlan("basic", 3) - 5 - 5);
-});
+test.each([["basic", 1, [], ["20off"]]])(
+  "Amount should never go below zero",
+  (plan, months, discountPercentageCodes, discountFixedCodes) => {
+    expect(
+      calculatePlan(plan, months, discountPercentageCodes, discountFixedCodes),
+    ).toEqual(0);
+  },
+);
+
+test.each([["basic", 3, [], ["5off", "5off"], [5, 5]]])(
+  "Multiple discount codes should work together",
+  (plan, months, discountPercentageCodes, discountFixedCodes, discounts) => {
+    expect(
+      calculatePlan(plan, months, discountPercentageCodes, discountFixedCodes),
+    ).toEqual(
+      calculatePlan(plan, months) -
+        discounts.reduce((acc, discount) => acc + discount, 0),
+    );
+  },
+);
+
+test.each([
+  ["basic", 3, [], [], 0.1],
+  ["pro", 6, [], [], 0.2],
+  ["enterprise", 12, [], [], 0.3],
+])(
+  "Applying tax to the final price",
+  (plan, months, discountPercentageCodes, discountFixedCodes, tax) => {
+    expect(
+      calculatePlan(
+        plan,
+        months,
+        discountPercentageCodes,
+        discountFixedCodes,
+        tax,
+      ),
+    ).toEqual(
+      calculatePlan(plan, months, discountPercentageCodes, discountFixedCodes) *
+        (1 + tax),
+    );
+  },
+);
